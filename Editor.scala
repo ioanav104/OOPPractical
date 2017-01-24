@@ -59,16 +59,24 @@ class Editor extends Undoable[Editor.Action] {
             case Editor.CTRLEND =>
                 p = ed.length
             case Editor.PAGEDOWN =>
-                p = ed.getPos(row + Editor.SCROLL, 0)
                 display.scroll(+Editor.SCROLL)
             case Editor.PAGEUP =>
                 p = ed.getPos(row - Editor.SCROLL, 0)
                 display.scroll(-Editor.SCROLL)
+            case Editor.MARK =>
+                val m = ed.mark
+                placeMarkCommand()
+                p = m
             case _ =>
                 throw new Error("Bad direction")
         }
 
         ed.point = p
+    }
+
+    /** Command: Place mark where the cursor currently is */
+    def placeMarkCommand() {
+        ed.mark = ed.point
     }
 
     /** Command: Insert a character */
@@ -217,6 +225,7 @@ object Editor {
     val PAGEDOWN = 8
     val CTRLHOME = 9
     val CTRLEND = 10
+    val MARK = 11
     
     /** Amount to scroll the screen for PAGEUP and PAGEDOWN */
     val SCROLL = Display.HEIGHT - 3
@@ -273,7 +282,9 @@ object Editor {
         Display.ctrl('G') -> (_.beep),
         Display.ctrl('K') -> (_.deleteCommand(END)),
         Display.ctrl('L') -> (_.chooseOrigin),
+        Display.ctrl('M') -> (_.placeMarkCommand),
         Display.ctrl('N') -> (_.moveCommand(DOWN)),
+        Display.ctrl('O') -> (_.moveCommand(MARK)),
         Display.ctrl('P') -> (_.moveCommand(UP)),
         Display.ctrl('Q') -> (_.quit),
         Display.ctrl('R') -> (_.replaceFileCommand),

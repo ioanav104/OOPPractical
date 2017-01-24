@@ -17,6 +17,9 @@ class EdBuffer {
     /** Current editing position. */
     private var _point = 0
 
+    /** Current position of the mark. */
+    private var _mark = 0
+    
     // State components that are not restored on undo
 
     /** File name for saving the text. */
@@ -81,6 +84,12 @@ class EdBuffer {
         _point = point
     }
 
+    def mark = _mark
+   
+    def mark_=(mark: Int) {
+        _mark = mark
+    }
+
     def filename = _filename
 
     private def filename_=(filename: String) { _filename = filename }
@@ -116,6 +125,9 @@ class EdBuffer {
         val ch = text.charAt(pos)
         noteDamage(ch == '\n' || getRow(pos) != getRow(point))
         text.deleteChar(pos)
+        if(pos < mark) {
+          mark = mark-1;
+        }
         setModified()
     }
 
@@ -123,6 +135,13 @@ class EdBuffer {
     def deleteRange(pos: Int, len: Int) {
         noteDamage(true)
         text.deleteRange(pos, len)
+        if(pos < mark) {
+            if(pos+len <= mark) {
+              mark = mark-len
+            } else {
+              mark = pos
+            }
+        }
         setModified()
     }
     
@@ -205,8 +224,13 @@ class EdBuffer {
     class Memento {
         private val pt = point
         
+        private val mk = mark
+        
         /** Restore the state when the memento was created */
-        def restore() { point = pt }
+        def restore() { 
+            point = pt 
+            mark = mk
+        }
     }
 
     /** Change that records an insertion */
