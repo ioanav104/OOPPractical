@@ -25,18 +25,20 @@ class EdBuffer {
     /** File name for saving the text. */
     private var _filename = ""
 
-    /** Dirty flag */
-    private var modified = false
+    // State components not preserved by undo and redo
+  
+    /** Number of changes */
+    private var changes = 0
 
 
     /** Register a display */
     def register(display: Display) { this.display = display }
 
-    /** Mark the buffer as modified */
-    private def setModified() { modified = true }
+    /** Mark a new change */
+    private def setModified() { changes = changes+1 }
 
     /** Test whether the text is modified */
-    def isModified = modified
+    def isModified = (changes > 0)
     
 
     // Display update
@@ -200,7 +202,7 @@ class EdBuffer {
                 MiniBuffer.message(display, "Couldn't read file '%s'", name)
         }
         
-        modified = false
+        changes = 0
         noteDamage(true)
     }
     
@@ -212,7 +214,7 @@ class EdBuffer {
             val out = new FileWriter(name)
             text.writeFile(out)
             out.close()
-            modified = false
+            changes = 0
         } catch {
             case e: IOException =>
                 MiniBuffer.message(display, "Couldn't write '%s'", name)
@@ -224,16 +226,20 @@ class EdBuffer {
     def getState() = new Memento()
     
     /** An immutable record of the editor state at some time.  The state that
-     * is recorded consists of just the current point. */
+     * is recorded consists of just the current point, the mark and the number 
+     * of changes. */
     class Memento {
         private val pt = point
         
         private val mk = mark
-        
+       
+        private val cs = changes
+
         /** Restore the state when the memento was created */
         def restore() { 
             point = pt 
             mark = mk
+            changes = cs
         }
     }
 
