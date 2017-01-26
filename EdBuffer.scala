@@ -149,6 +149,7 @@ class EdBuffer {
     def insert(pos: Int, ch: Char) {
         noteDamage(ch == '\n' || getRow(pos) != getRow(point))
         text.insert(pos, ch)
+        if(pos <= mark) mark = mark+1
         setModified()
     }
     
@@ -156,6 +157,7 @@ class EdBuffer {
     def insert(pos: Int, s: String) {
         noteDamage(true)
         text.insert(pos, s)
+        if(pos <= mark) mark = mark+s.length
         setModified()
     }
     
@@ -163,6 +165,7 @@ class EdBuffer {
     def insert(pos: Int, s: Text.Immutable) {
         noteDamage(true)
         text.insert(pos, s)
+        if(pos <= mark) mark = mark+s.length
         setModified()
     }
     
@@ -170,6 +173,7 @@ class EdBuffer {
     def insert(pos: Int, t: Text) {
         noteDamage(true)
         text.insert(pos, t)
+        if(pos <= mark) mark = mark+t.length
         setModified()
     }
 
