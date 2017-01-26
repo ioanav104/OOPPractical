@@ -41,6 +41,13 @@ class Text(init: Int) extends CharSequence {
             buffer(max-len+pos)
     }
     
+    /** Return whether the specifies position is in a word */
+    def isInWord(pos: Int) = {
+        val c = charAt(pos)
+        ((c >= 'a' && c <= 'z') ||
+         (c >= 'A' && c <= 'Z') ||
+         (c >= '0' && c <= '9'))
+    }
     // Mutators: any changes or additions here require similar changes to
     // the subclass PlaneText (the fragile base class problem).
     

@@ -134,6 +134,31 @@ class Editor extends Undoable[Editor.Action] {
         new ed.Transposition(p); 
     }
     
+    /** Command: Convert a word to uppercase at the current position */
+    def toUpperCommand(): Change = {
+        var p = ed.point
+        if(!ed.isInWord(p)) {
+            beep() 
+            return null    
+        }
+        
+        while(p > 0 && ed.isInWord(p)) { p = p-1 }
+        if(p == 0 && ed.isInWord(0)) 
+            p = 0
+        else
+            p = p+1
+
+        var start = p
+
+        var s = ""
+        while(ed.isInWord(p)) {
+            s = s+ed.charAt(p)
+            p = p+1
+        }
+        ed.toUpper(start)
+        new ed.AmalgUppercase(start, s)
+    }
+
     /** Command: Save the file */
     def saveFileCommand() {
         val name = 
@@ -289,6 +314,7 @@ object Editor {
         Display.ctrl('Q') -> (_.quit),
         Display.ctrl('R') -> (_.replaceFileCommand),
         Display.ctrl('T') -> (_.transposeCommand),
+        Display.ctrl('U') -> (_.toUpperCommand),
         Display.ctrl('W') -> (_.saveFileCommand),
         Display.ctrl('Y') -> (_.redo),
         Display.ctrl('Z') -> (_.undo))

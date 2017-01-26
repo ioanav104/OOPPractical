@@ -101,6 +101,8 @@ class EdBuffer {
     
     def charAt(pos: Int) = text.charAt(pos)
 
+    def isInWord(pos:Int) = text.isInWord(pos)
+    
     def getRow(pos: Int) = text.getRow(pos)
 
     def getColumn(pos: Int) = text.getColumn(pos)
@@ -146,7 +148,7 @@ class EdBuffer {
         }
         setModified()
     }
-    
+
     /** Insert a character */
     def insert(pos: Int, ch: Char) {
         noteDamage(ch == '\n' || getRow(pos) != getRow(point))
@@ -185,6 +187,21 @@ class EdBuffer {
         var c = text.charAt(pos)
         text.deleteChar(pos)
         text.insert(pos+1, c)
+        setModified()
+    }
+
+    /** Change a word that starts at pos to uppercase. */
+    def toUpper(pos:Int) {
+        noteDamage(true)
+        var p = pos
+        while(text.isInWord(p)) {
+            if(text.charAt(p) >='a' && text.charAt(p) <='z') {
+               val c = text.charAt(p)
+               deleteChar(p)
+               insert(p, (c+'A'-'a').toChar)
+            }    
+            p = p+1
+        }
         setModified()
     }
 
@@ -284,6 +301,34 @@ class EdBuffer {
     class Transposition(pos: Int) extends Change {
         def undo() { transpose(pos) }
         def redo() { transpose(pos) }
+    }
+
+    /** Change that records a word turned into uppercase */
+    class Uppercase(pos: Int, word: String) extends Change {
+        def undo() { deleteRange(pos, word.length); insert(pos, word) }
+        def redo() { toUpper(pos) }
+    } 
+
+    /** The same word changed to uppercase, potentially from different positions
+     *  can be amalgamated */
+    class AmalgUppercase(pos: Int, word: String) extends Change {
+        var original = word
+        val position = pos
+        def undo() { deleteRange(pos, original.length); insert(pos, original) }
+        def redo() { toUpper(pos) }
+
+        override def amalgamate(change: Change) = {
+            change match {
+                case other: AmalgUppercase => 
+                  if(other.position == this.position) {
+                      original = other.original
+                      true
+                  } else {
+                      false
+                  }
+                case _ => false
+            }
+        }
     }
 
     def wrapChange(before: Memento, change: Change, after: Memento) = {
