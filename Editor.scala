@@ -82,9 +82,12 @@ class Editor extends Undoable[Editor.Action] {
     /** Command: Insert a character */
     def insertCommand(ch: Char): Change = {
         val p = ed.point
-        ed.insert(p, ch)
-        ed.point = p+1
-        new ed.AmalgInsertion(p, ch)
+        if(ed.getEncryption(p) != 0) {beep(); return null; }
+        else{
+            ed.insert(p, ch)
+            ed.point = p+1
+            new ed.AmalgInsertion(p, ch)
+        }
     }
 
     /** Command: Delete in a specified direction */
@@ -94,20 +97,21 @@ class Editor extends Undoable[Editor.Action] {
 
         dir match {
             case Editor.LEFT =>
-                if (p == 0) { beep(); return null }
+                if (p == 0 || ed.getEncryption(p-1) != 0) { beep(); return null }
                 p -= 1
                 var c = ed.charAt(p)
                 ed.deleteChar(p)
                 ed.point = p
                 new ed.Deletion(p, new Text(c))
             case Editor.RIGHT =>
-                if (p == ed.length) { beep(); return null }
+                if (p == ed.length || ed.getEncryption(p) != 0) { beep(); return null }
                 var c = ed.charAt(p)
                 ed.deleteChar(p)
                 new ed.Deletion(p, new Text(c))
             case Editor.END =>
                 if (p == ed.length) { beep(); return null }
                 if(ed.charAt(p) == '\n') {
+                    if(ed.getEncryption(p) != 0) { beep(); return null }
                     ed.deleteChar(p)
                     new ed.Deletion(p, new Text("\n"))
                 } else {
@@ -142,7 +146,7 @@ class Editor extends Undoable[Editor.Action] {
             return null    
         }
         
-        while(p > 0 && ed.isInWord(p)) { p = p-1 }
+        while(p > 0 && ed.isInWord(p) && ed.getEncryption(p) == 0) { p = p-1 }
         if(p == 0 && ed.isInWord(0)) 
             p = 0
         else
@@ -151,12 +155,22 @@ class Editor extends Undoable[Editor.Action] {
         var start = p
 
         var s = ""
-        while(ed.isInWord(p)) {
+        while(ed.isInWord(p) && ed.getEncryption(p) == 0) {
             s = s+ed.charAt(p)
             p = p+1
         }
+        if(ed.getEncryption(start)!=0) {beep(); return null }
         ed.toUpper(start)
         new ed.AmalgUppercase(start, s)
+    }
+
+    def cryptCommand(): Change = {
+        val p = ed.point
+        val m = ed.mark
+        val enc = ed.getEncryption(p)
+        if(enc != 0) { var t = ed.decrypt(p); new ed.Decryption(enc, t._1, t._2) }
+        else if(p <= m) { ed.encrypt(p, m); new ed.Encryption(ed.getEncryption(p), p, m) }
+        else { ed.encrypt(p, m); new ed.Encryption(ed.getEncryption(p), m, p) } 
     }
 
     /** Command: Save the file */
@@ -305,6 +319,7 @@ object Editor {
         Display.ctrl('E') -> (_.moveCommand(END)),
         Display.ctrl('F') -> (_.moveCommand(RIGHT)),
         Display.ctrl('G') -> (_.beep),
+        Display.ctrl('H') -> (_.cryptCommand),
         Display.ctrl('K') -> (_.deleteCommand(END)),
         Display.ctrl('L') -> (_.chooseOrigin),
         Display.ctrl('M') -> (_.placeMarkCommand),

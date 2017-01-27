@@ -9,6 +9,12 @@ class EdBuffer {
     /** The text being edited. */
     private val text = new PlaneText()
 
+    /** What encryption is each element a part of. */
+    private val crypt = new PlaneText()
+
+    /** Number of ecrypted chunks of text. */
+    private var cryptcount: Char = 0
+
     /** The display. */
     private var display: Display = null
     
@@ -121,7 +127,8 @@ class EdBuffer {
 
     def writeFile(out: Writer) { text.writeFile(out) }
 
-
+    def getEncryption(pos: Int) = { crypt.charAt(pos) }
+    
     // Mutator methods
 
     /** Delete a character */
@@ -129,16 +136,19 @@ class EdBuffer {
         val ch = text.charAt(pos)
         noteDamage(ch == '\n' || getRow(pos) != getRow(point))
         text.deleteChar(pos)
+        crypt.deleteChar(pos)
         if(pos < mark) {
           mark = mark-1;
         }
         setModified()
+        
     }
 
     /** Delete a range of characters. */
     def deleteRange(pos: Int, len: Int) {
         noteDamage(true)
         text.deleteRange(pos, len)
+        crypt.deleteRange(pos, len)
         if(pos < mark) {
             if(pos+len <= mark) {
               mark = mark-len
@@ -153,30 +163,37 @@ class EdBuffer {
     def insert(pos: Int, ch: Char) {
         noteDamage(ch == '\n' || getRow(pos) != getRow(point))
         text.insert(pos, ch)
+        crypt.insert(pos, 0.toChar)
         if(pos <= mark) mark = mark+1
         setModified()
     }
     
     /** Insert a string */
     def insert(pos: Int, s: String) {
+        val zero:Char = 0
         noteDamage(true)
         text.insert(pos, s)
+        crypt.insert(pos,zero.toString * s.length) 
         if(pos <= mark) mark = mark+s.length
         setModified()
     }
     
     /** Insert an immutable text. */
     def insert(pos: Int, s: Text.Immutable) {
+        val zero: Char = 0
         noteDamage(true)
         text.insert(pos, s)
+        crypt.insert(pos, zero.toString * s.length)
         if(pos <= mark) mark = mark+s.length
         setModified()
     }
     
     /** Insert a Text. */
     def insert(pos: Int, t: Text) {
+        val zero: Char = 0
         noteDamage(true)
         text.insert(pos, t)
+        crypt.insert(pos, zero.toString * t.length)
         if(pos <= mark) mark = mark+t.length
         setModified()
     }
@@ -205,6 +222,38 @@ class EdBuffer {
         setModified()
     }
 
+    /** Encrypt a chunck of text. */
+    def encrypt(left: Int, right: Int) {
+      noteDamage(true)
+      cryptcount = (cryptcount+1).toChar
+        for(i <- left to right) {
+            text.rot13(i)
+            crypt.deleteChar(i)
+            crypt.insert(i, cryptcount)
+        }
+    }
+
+    /** Decrypt a part of a text, returning what it decryted. */
+    def decrypt(pos: Int): (Int, Int) = {
+        noteDamage(true)
+        val c = getEncryption(pos)
+        var right = pos
+        while(getEncryption(right) == c) {
+            text.rot13(right)
+            crypt.deleteChar(right)
+            crypt.insert(right, 0.toChar)
+            right = right+1
+        }
+        var left = pos-1
+        while(left >= 0 && getEncryption(left) == c) {
+            text.rot13(left)
+            crypt.deleteChar(left)
+            crypt.insert(left, 0.toChar)
+            left = left-1
+        }
+        return (left+1, right-1)
+    }
+
     /** Load a file into the buffer. */
     def loadFile(name: String) {
         filename = name
@@ -214,6 +263,7 @@ class EdBuffer {
             val in = new FileReader(name)
             text.insertFile(0, in)
             in.close()
+            crypt.insert(0, 0.toChar.toString * text.length)
         } catch {
             case e: IOException =>
                 MiniBuffer.message(display, "Couldn't read file '%s'", name)
@@ -289,6 +339,24 @@ class EdBuffer {
                 case _ => false
             }
         }
+    }
+
+    class Encryption(enc: Char, left: Int, right: Int) extends Change {
+        def undo() { assert( (left, right) == decrypt(left) ) }
+        def redo() { 
+            for(i <- left to right) {
+                text.rot13(i)
+                crypt.deleteChar(i)
+                crypt.insert(i, enc)
+            }
+        }
+    }
+
+    class Decryption(enc: Char, left:Int, right: Int) extends Change {
+        var encryption = enc
+        def undo() {encrypt(left, right); encryption = getEncryption(left)}
+        def redo() {decrypt(left);}
+    
     }
 
     /** Change that records a deletion */

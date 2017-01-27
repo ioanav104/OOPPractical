@@ -56,6 +56,17 @@ class Text(init: Int) extends CharSequence {
         gap = 0; len = 0
     }
 
+    /** Rotate the character 13 positions if it's a letter */
+    def rot13(pos: Int) {
+
+        var p = 0
+        if(pos<gap) p = pos
+        else p = max-len+pos
+
+        if(buffer(p)>='A' && buffer(p)<='Z') buffer(p) = ((buffer(p)-'A'+13)%26+'A').toChar
+        else if(buffer(p)>='a' && buffer(p)<='z') buffer(p) = ((buffer(p)-'a'+13)%26+'a').toChar
+    }
+
     /** Insert a single character. */
     def insert(pos: Int, ch: Char) {
         assert(0 <= pos && pos <= len)
